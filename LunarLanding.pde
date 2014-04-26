@@ -110,6 +110,7 @@ void draw() {
     buildSpaceShip();
     calcGravity();
     if (checkFuel()) {
+      playing=false;
       drawBadMessage("CHECK YOUR FUEL", "You die alone in the space.");
     }
     else {
@@ -232,8 +233,8 @@ void keyPressed() {
       break;
     }
   }
-  else if (key==' ') {
-    if (isSuccess) {
+  else if (key==' ' && !playing) {
+    if (isSuccess && !checkSpeed()) {
       initializeGame();
       times = 0;
       //change values to make it more difficult
@@ -241,17 +242,12 @@ void keyPressed() {
       PROPULSION -=0.05f;
       fuel -= (int) random (1, 2);
     }
-    else if (!playing) {
+    else if (!playing || checkSpeed()) {
       //you lose
+      playing=false;
       int t = times;
       initializeGame();
       times = t;
-    }
-    else if (checkSpeed()) {
-      playing=false;
-    }
-    else if (checkFuel()) {
-      playing=false;
     }
   }
 }
