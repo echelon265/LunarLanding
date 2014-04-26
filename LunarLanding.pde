@@ -13,23 +13,22 @@ final static int MOVE_RIGHT = 1;
 final static int MOVE_UP = 2;
 
 //Global Variables
-static float GRAVITY = 0.3f;
-static float PROPULSION = 0.5f;
+float gravity;
+float propulsion;
 
 int basePosition;
 
 float shipSpeed;
-float shipAccel;
 int shipY;
 int shipX;
 
 int fuel;
 int times;
 
-boolean isFuelActive;
 boolean isSuccess;
 boolean deadLine;
 boolean playing;
+boolean rightPosition;
 
 PFont font;
 PImage bg;
@@ -45,12 +44,13 @@ void setup() {
 }
 
 void initializeGame() {
-  isFuelActive = false;
   isSuccess = false;
   deadLine = false;
+  rightPosition = false;
   playing = true;
   shipSpeed = 0f;
-  shipAccel = 0f;
+  gravity = 0.3f;
+  propulsion = 0.5f;
   fuel = 100;
   times = 0;
   background(bg);
@@ -109,9 +109,11 @@ void draw() {
     drawBase(basePosition);
     drawLabelsBars();
     buildSpaceShip();
-    calcGravity();
-    checkSpeed();
-    if (checkFuel()) {
+    calcgravity();
+    checkDeadLine();
+    println(shipX+" "+shipY+" "+shipSpeed);
+    if (!isFuelAvailable()) {
+      //fuel tank is empty: game over
       playing=false;
       isSuccess=false;
     }
@@ -121,48 +123,64 @@ void draw() {
   }
   else {
     if (!isSuccess) {
-      drawBadMessage(" GAME OVER ", "Press space to try again");
+      if (!isFuelAvailable()) {
+        drawBadMessage(" FUEL TANK EMPTY ", "Press space to try again");
+      }
+      else if (hasHighSpeed() && rightPosition) {
+        drawBadMessage(" TOO FAST ", "Press space to try again");
+      }
+      else {
+        drawBadMessage(" GAME OVER ", "Press space to try again");
+      }
     }
     else if (isSuccess) {
-      if (checkSpeed())
-        drawBadMessage("TOO FAST", "In real life, you would be crashed.");
-      else
-        drawSuccessMessage();
+      drawSuccessMessage();
     }
   }
 }
 
-boolean checkFuel() {
-  boolean b = fuel<=0;
-  if (b) {
-    isSuccess=false;
-  }
-  return b;
-}
+void checkDeadLine() {
+  int base_horizontal  = WINDOW_HEIGHT-BASE_HEIGHT;
+  int ship_horizontal = shipY+(SHIP_HEIGHT/SHIP_SIZE);
+  deadLine = ship_horizontal>=base_horizontal;
 
-boolean checkSpeed() {
-  return shipSpeed>5;
-}
-
-void evaluateLanding() {
   //this functions detects whether the spaceship landed within the borders of the base area or not
   int base_left_border = basePosition;
   int base_right_border = basePosition+BASE_WIDTH;
   int ship_left_border = shipX;
   int ship_right_border = shipX+(SHIP_WIDTH/SHIP_SIZE);
+  rightPosition = ship_left_border >= base_left_border && ship_right_border <= base_right_border;
+  if (deadLine && rightPosition && !hasHighSpeed())
+    isSuccess=true;
+}
 
-  int base_horizontal  = WINDOW_HEIGHT-BASE_HEIGHT;
-  int ship_horizontal = shipY+(SHIP_HEIGHT/SHIP_SIZE);
-  if (ship_horizontal>=base_horizontal && !deadLine) {
-    deadLine = true;
-    if (ship_left_border >= base_left_border && ship_right_border <= base_right_border) {
-      if(!checkSpeed()){
+boolean isFuelAvailable() {
+  boolean b = fuel>0;
+  if (!b) {
+    isSuccess = false;
+  }
+  return b;
+}
+
+boolean hasHighSpeed() {
+  return shipSpeed>5;
+}
+
+void evaluateLanding() {
+  if (deadLine) {
+    if (rightPosition) {
+      if (!hasHighSpeed()) {
+        //this is well done zone
         isSuccess = true;
-        playing = false;
       }
+      else {
+        //you landed too fast
+        isSuccess = false;
+      }
+      playing = false;
     }
   }
-  if (ship_horizontal>=WINDOW_HEIGHT) {
+  if (shipY+(SHIP_HEIGHT/SHIP_SIZE)>=WINDOW_HEIGHT) {
     //this is game over zone
     playing=false;
     isSuccess=false;
@@ -190,18 +208,20 @@ void drawMessage(String bigText, String smallText) {
   text(smallText, width/2, height/2+offset);  // STEP 7 Display Text
 }
 
-void calcGravity() {
+void calcgravity() {
   // Add speed to location.
   shipY += shipSpeed;
   // Add gravity to speed.
-  shipSpeed += GRAVITY;
+  shipSpeed += gravity;
 }
 
 void move(int type) {
   if (type == MOVE_UP) {
-    shipSpeed *= -PROPULSION;
-    shipY-=shipSpeed;
-    image(ship, shipX, shipY);
+    shipY-= shipSpeed;
+    shipSpeed *= propulsion;
+   /* shipY -= shipSpeed;
+    shipSpeed = -shipSpeed;
+    shipSpeed *= -propulsion;*/
   }
   if (type == MOVE_LEFT) {
     //location = location - velocity
@@ -218,42 +238,30 @@ void keyPressed() {
     switch (keyCode) {
     case LEFT:
       move(MOVE_LEFT);
-      isFuelActive=false;
       break;
     case UP:
       fuel -= 1;
       move(MOVE_UP);
-      isFuelActive=true;
       break;
     case RIGHT:
-      isFuelActive=false;
       move(MOVE_RIGHT);
       break;
     }
   }
   else if (key==' ' && !playing) {
     if (isSuccess) {
-      int previousTimes = times;
       int previousFuel = fuel;
       initializeGame();
-      println("well done "+checkSpeed());
-      if (checkSpeed()) {
-        times = previousTimes+1;
+      //change values to make it more difficult
+      gravity +=0.1f;
+      propulsion -=0.05f;
+      fuel = previousFuel;
+      fuel -= (int) random (1, 5);
+      //If resultant fuel value is less than zero. generate a random fuel value betwwen 50 and 70
+      if (fuel<=10)
+        fuel = (int) random(50, 70);
       }
-      else {
-        times = 0;
-        //change values to make it more difficult
-        GRAVITY +=0.1f;
-        PROPULSION -=0.05f;
-        fuel = previousFuel;
-        fuel -= (int) random (1, 5);
-        //If resultant fuel value is less than zero. generate a random fuel value betwwen 50 and 70
-        if(fuel<=10)
-          fuel = (int) random(50,70);
-        println(fuel);
-      }
-    }
-    else if (!playing || checkSpeed() || checkFuel()) {
+    else {
       //you lose
       int t = times;
       initializeGame();
@@ -261,8 +269,3 @@ void keyPressed() {
     }
   }
 }
-
-void keyReleased() {
-  isFuelActive=false;
-}
-
