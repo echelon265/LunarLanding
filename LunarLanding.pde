@@ -1,5 +1,5 @@
 //Constants
-final static int SHIP_SIZE = 8;
+final static int SHIP_SIZE = 8; // 1 means real size image
 final static int SHIP_HEIGHT = 598;
 final static int SHIP_WIDTH = 342;
 
@@ -39,6 +39,7 @@ void setup() {
   //frameRate(30);
   size(WINDOW_WIDTH, WINDOW_HEIGHT);
   noStroke();
+  //creates the objects of the game
   loadBG();
   initializeGame();
 }
@@ -57,6 +58,7 @@ void initializeGame() {
   shipY=50;
   shipX= (int) random(SHIP_SIZE, (WINDOW_WIDTH-SHIP_SIZE)/2);
   basePosition = (int) random(0, WINDOW_WIDTH-BASE_WIDTH);
+  //draw main objects in the screen
   drawLabelsBars();
   drawBase(basePosition);
   buildSpaceShip();
@@ -76,7 +78,7 @@ void drawLabelsBars() {
   textAlign(LEFT);  // STEP 4 Specify font to be used
   text("SPEED "+ (int)shipSpeed, 20, 50);  // STEP 6 Display Text
   text("FUEL "+ (int)fuel, 20, 100);
-  text("TIMES: "+ (int)times, 20, 150);
+  text("ATTEMPT "+ (int)times, 20, 150);
 }
 
 void drawBase(int x) {
@@ -103,15 +105,15 @@ void buildSpaceShip() {
 
 void draw() {
   background(bg);
-  println(checkSpeed()+" "+isSuccess);
   if (playing) {
     drawBase(basePosition);
     drawLabelsBars();
     buildSpaceShip();
     calcGravity();
+    checkSpeed();
     if (checkFuel()) {
       playing=false;
-      drawBadMessage("CHECK YOUR FUEL", "You die alone in the space.");
+      isSuccess=false;
     }
     else {
       evaluateLanding();
@@ -154,20 +156,15 @@ void evaluateLanding() {
   if (ship_horizontal>=base_horizontal && !deadLine) {
     deadLine = true;
     if (ship_left_border >= base_left_border && ship_right_border <= base_right_border) {
-      isSuccess = true;
-      if (checkSpeed()) {
-        times++;
+      if(!checkSpeed()){
+        isSuccess = true;
+        playing = false;
       }
-      else {
-        times = 0;
-      }
-      playing = false;
     }
   }
   if (ship_horizontal>=WINDOW_HEIGHT) {
     //this is game over zone
     playing=false;
-    times++;
     isSuccess=false;
   }
 }
@@ -203,6 +200,7 @@ void calcGravity() {
 void move(int type) {
   if (type == MOVE_UP) {
     shipSpeed *= -PROPULSION;
+    shipY-=shipSpeed;
     image(ship, shipX, shipY);
   }
   if (type == MOVE_LEFT) {
@@ -234,20 +232,32 @@ void keyPressed() {
     }
   }
   else if (key==' ' && !playing) {
-    if (isSuccess && !checkSpeed()) {
+    if (isSuccess) {
+      int previousTimes = times;
+      int previousFuel = fuel;
       initializeGame();
-      times = 0;
-      //change values to make it more difficult
-      GRAVITY +=0.1f;
-      PROPULSION -=0.05f;
-      fuel -= (int) random (1, 2);
+      println("well done "+checkSpeed());
+      if (checkSpeed()) {
+        times = previousTimes+1;
+      }
+      else {
+        times = 0;
+        //change values to make it more difficult
+        GRAVITY +=0.1f;
+        PROPULSION -=0.05f;
+        fuel = previousFuel;
+        fuel -= (int) random (1, 5);
+        //If resultant fuel value is less than zero. generate a random fuel value betwwen 50 and 70
+        if(fuel<=10)
+          fuel = (int) random(50,70);
+        println(fuel);
+      }
     }
-    else if (!playing || checkSpeed()) {
+    else if (!playing || checkSpeed() || checkFuel()) {
       //you lose
-      playing=false;
       int t = times;
       initializeGame();
-      times = t;
+      times = t+1;
     }
   }
 }
